@@ -5,6 +5,7 @@
 #include <format>
 #include <string>
 #include "imgui.h"
+#include <AIController.h>
 
 
 // Sets default values
@@ -254,9 +255,13 @@ void ALevel_SteeringBehaviors::SetAgentBehavior(ImGui_Agent& Agent)
 	} 
 
 	UpdateTarget(Agent);
-	
+
 	Agent.Agent->SetIsAutoOrienting(autoOrient);
 	Agent.Agent->SetSteeringBehavior(Agent.Behavior.get());
+
+	AAIController* AIController = Cast<AAIController>(Agent.Agent->GetController());
+	if (AIController == nullptr) return;
+	AIController->bSetControlRotationFromPawnOrientation = autoOrient;
 }
 
 void ALevel_SteeringBehaviors::RefreshTargetLabels()
