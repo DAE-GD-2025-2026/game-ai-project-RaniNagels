@@ -237,7 +237,7 @@ SteeringOutput Wander::CalculateSteering(float deltaT, ASteeringAgent& Agent)
     if (Agent.GetDebugRenderingEnabled())
     {
         DrawDebugCircle(Agent.GetWorld(), FVector(targetRadiusCenter, 0), m_Radius, 16, FColor(0, 0, 255), false, -1.f, 0, 0.0f, FVector(1.f, 0.f, 0.f), FVector(0.f, 1.f, 0.f), false);
-        DrawDebugPoint(Agent.GetWorld(), FVector(wanderTarget, 0), 20, FColor(0, 0, 0));
+        DrawDebugPoint(Agent.GetWorld(), FVector(wanderTarget, 0), 5, FColor(0, 0, 0));
     }
 
     return steering;
