@@ -6,13 +6,46 @@
 
 //*******************
 //COHESION (FLOCKING)
-SteeringOutput Cohesion::CalculateSteering(float deltaT, ASteeringAgent& pAgent)
+SteeringOutput Cohesion::CalculateSteering(float deltaT, ASteeringAgent& Agent)
 {
-	return SteeringOutput{};
+	SteeringOutput steering{};
+	steering.LinearVelocity = (m_pFlock->GetAverageNeighborPos() - Agent.GetPosition()).GetSafeNormal();
+	steering.LinearVelocity.Normalize();
+	steering.LinearVelocity *= Agent.GetMaxLinearSpeed();
+	return steering;
 }
 
 //*********************
 //SEPARATION (FLOCKING)
 
+SteeringOutput Separation::CalculateSteering(float deltaT, ASteeringAgent& Agent)
+{
+	SteeringOutput steering{};
+
+	// Move away from neighbors with a speed that's inversly proportionla (y=1/x) to the distance to that neighbor.
+	// The closer the neighbor is, the more impact it should have on the output velocity.
+
+	for (int i{}; i < m_pFlock->GetNrOfNeighbors(); ++i)
+	{
+		FVector2D direction = Agent.GetPosition() - m_pFlock->GetNeighbors()[i]->GetPosition();
+		float distance = FVector2D::Distance(Agent.GetPosition(), m_pFlock->GetNeighbors()[i]->GetPosition());
+		steering.LinearVelocity += direction / distance;
+	}
+
+	steering.LinearVelocity.Normalize();
+	steering.LinearVelocity *= Agent.GetMaxLinearSpeed();
+
+	return steering;
+}
+
 //*************************
 //VELOCITY MATCH (FLOCKING)
+
+SteeringOutput VelocityMatch::CalculateSteering(float deltaT, ASteeringAgent& Agent)
+{
+	SteeringOutput steering{};
+	steering.LinearVelocity = m_pFlock->GetAverageNeighborVelocity();
+	steering.LinearVelocity.Normalize();
+	steering.LinearVelocity *= Agent.GetMaxLinearSpeed();
+	return steering;
+}

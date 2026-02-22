@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include <memory>
 #include "Flock.h"
 #include "Shared/Level_Base.h"
 #include "Level_Flocking.generated.h"
@@ -26,6 +27,7 @@ protected:
 	int const FlockSize{100};
 
 	TUniquePtr<Flock> pFlock{};
+	std::unique_ptr<Seek> pSeekBehavior{};
 	
 	UPROPERTY(EditAnywhere, Category = "Flocking")
 	ASteeringAgent* pAgentToEvade{nullptr}; // non owning ref

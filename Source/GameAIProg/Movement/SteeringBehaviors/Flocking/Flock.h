@@ -61,15 +61,17 @@ private:
 	float NeighborhoodRadius{200.f};
 	int NrOfNeighbors{0};
 
+	float WorldSize{ 100.f };
+
 	ASteeringAgent* pAgentToEvade{nullptr};
 	
 	//Steering Behaviors
-	//std::unique_ptr<Separation> pSeparationBehavior{};
-	//std::unique_ptr<Cohesion> pCohesionBehavior{};
-	//std::unique_ptr<VelocityMatch> pVelMatchBehavior{};
-	//std::unique_ptr<Seek> pSeekBehavior{};
-	//std::unique_ptr<Wander> pWanderBehavior{};
-	//std::unique_ptr<Evade> pEvadeBehavior{};
+	std::unique_ptr<Separation> pSeparationBehavior{};
+	std::unique_ptr<Cohesion> pCohesionBehavior{};
+	std::unique_ptr<VelocityMatch> pVelMatchBehavior{};
+	std::unique_ptr<Seek> pSeekBehavior{};
+	std::unique_ptr<Wander> pWanderBehavior{};
+	std::unique_ptr<Evade> pEvadeBehavior{};
 	
 	std::unique_ptr<BlendedSteering> pBlendedSteering{};
 	std::unique_ptr<PrioritySteering> pPrioritySteering{};
@@ -79,5 +81,6 @@ private:
 	bool DebugRenderNeighborhood{true};
 	bool DebugRenderPartitions{true};
 
-	void RenderNeighborhood();
+	void RenderNeighborhood(ASteeringAgent* const pAgent);
+	void TrimToWorld(ASteeringAgent* const pAgent);
 };

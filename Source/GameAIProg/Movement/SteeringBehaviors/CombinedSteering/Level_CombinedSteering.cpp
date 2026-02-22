@@ -92,7 +92,6 @@ void ALevel_CombinedSteering::Tick(float DeltaTime)
 	
 		if (ImGui::Checkbox("Debug Rendering", &CanDebugRender))
 		{
-   // TODO: Handle the debug rendering of your agents here :)
 			m_pBlendedSteeringAgent->SetDebugRenderingEnabled(CanDebugRender);
 			m_pPrioritySteeringAgent->SetDebugRenderingEnabled(CanDebugRender);
 		}

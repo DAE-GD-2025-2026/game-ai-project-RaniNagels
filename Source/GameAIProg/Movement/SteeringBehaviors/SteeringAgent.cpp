@@ -39,7 +39,7 @@ void ASteeringAgent::Tick(float DeltaTime)
 			FRotator rotation = AIController->GetControlRotation();
 			rotation.Yaw += FMath::RadiansToDegrees(output.AngularVelocity);
 			rotation.Normalize();
-
+		
 			AIController->SetControlRotation(rotation);
 		}
 	}

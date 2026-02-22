@@ -19,6 +19,11 @@ void ALevel_Flocking::BeginPlay()
 	TrimWorld->SetTrimWorldSize(3000.f);
 	TrimWorld->bShouldTrimWorld = true;
 
+	pSeekBehavior = std::make_unique<Seek>();
+	pAgentToEvade = GetWorld()->SpawnActor<ASteeringAgent>(SteeringAgentClass, FVector{ 0,0,90 }, FRotator::ZeroRotator);
+	pAgentToEvade->SetDebugRenderingEnabled(true);
+	pAgentToEvade->SetSteeringBehavior(pSeekBehavior.get());
+
 	pFlock = TUniquePtr<Flock>(
 		new Flock(
 			GetWorld(),
@@ -34,6 +39,9 @@ void ALevel_Flocking::BeginPlay()
 void ALevel_Flocking::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	pSeekBehavior->SetTarget(MouseTarget);
+	pAgentToEvade->Tick(DeltaTime);
 
 	pFlock->ImGuiRender(WindowPos, WindowSize);
 	pFlock->Tick(DeltaTime);

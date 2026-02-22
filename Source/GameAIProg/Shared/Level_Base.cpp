@@ -34,8 +34,9 @@ void ALevel_Base::Tick(float DeltaTime)
 	WindowSize = {MenuWidth, static_cast<float>(ViewportSize.Y) - 20};
 	WindowPos = {static_cast<float>(ViewportSize.X) - MenuWidth - 10, 10};
 
-	// 	//Render Target
-	// 	if(VisualizeMouseTarget)
-	// 		DEBUGRENDERER2D->DrawSolidCircle(MouseTarget.Position, 0.3f, { 0.f,0.f }, { 1.f,0.f,0.f },-0.8f);
+	//Render Target
+	if (VisualizeMouseTarget)
+		DrawDebugCylinder(GetWorld(), FVector{ MouseTarget.Position, 0 }, FVector{ MouseTarget.Position, 50 }, 10, 16, FColor::Red);
+		//->DrawSolidCircle(MouseTarget.Position, 0.3f, { 0.f,0.f }, { 1.f,0.f,0.f },-0.8f);
 }
 

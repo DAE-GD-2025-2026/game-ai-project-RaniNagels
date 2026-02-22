@@ -1,8 +1,6 @@
 #include "SteeringBehaviors.h"
 #include "GameAIProg/Movement/SteeringBehaviors/SteeringAgent.h"
 
-// TODO: Do the Week01 assignment :^)
-
 int g_DebugArrowSize = 150;
 int g_DebugArrowLength = 200;
 
