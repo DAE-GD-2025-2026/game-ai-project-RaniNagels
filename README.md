@@ -1,3 +1,4 @@
 # Game AI Project
 
-Feel free to edit the readme to your liking
+Algorithms 2 - 2026
+Rani Nagels 2GD10

@@ -13,6 +13,7 @@ Flock::Flock(
 	: pWorld{pWorld}
 	, FlockSize{ FlockSize }
 	, WorldSize{WorldSize}
+	, TrimWorld{ bTrimWorld }
 	, pAgentToEvade{pAgentToEvade}
 {
 	pCohesionBehavior = std::make_unique<Cohesion>(this);
@@ -36,32 +37,48 @@ Flock::Flock(
 	steeringBehaviors.push_back(pBlendedSteering.get());
 	pPrioritySteering = std::make_unique<PrioritySteering>(steeringBehaviors);
 
+#ifndef GAMEAI_USE_SPACE_PARTITIONING
+	Neighbors.SetNum(FlockSize - 1);
+#else GAMEAI_USE_SPACE_PARTITIONING
+	pPartitionedSpace = std::make_unique<CellSpace>(pWorld, WorldSize, WorldSize, NrOfCellsX, NrOfCellsX, FlockSize);
+	pPartitionedSpace->EmptyCells();
+	OldPositions.SetNum(FlockSize);
+#endif
+
 	// initialize the flock and the memory pool
 	Agents.SetNum(FlockSize);
 	for (int i{}; i < FlockSize; ++i)
 	{
-		// spawn the agents in random locations, Z should always be 90
-		float RandX = FMath::FRandRange(-WorldSize * 0.5f, WorldSize * 0.5f);
-		float RandY = FMath::FRandRange(-WorldSize * 0.5f, WorldSize * 0.5f);
+		ASteeringAgent* newAgent = nullptr;
+		while (newAgent == nullptr)
+		{
+			// spawn the agents in random locations, Z should always be 90
+			float RandX = FMath::FRandRange(-WorldSize * 0.5f, WorldSize * 0.5f);
+			float RandY = FMath::FRandRange(-WorldSize * 0.5f, WorldSize * 0.5f);
 
-		FVector SpanwLocation = FVector(RandX, RandY, 90);
-		Agents[i] = pWorld->SpawnActor<ASteeringAgent>(AgentClass, SpanwLocation, FRotator::ZeroRotator);
+			FVector SpanwLocation = FVector(RandX, RandY, 90);
+			newAgent = pWorld->SpawnActor<ASteeringAgent>(AgentClass, SpanwLocation, FRotator::ZeroRotator);
+		}
+		Agents[i] = newAgent;
+		OldPositions[i] = Agents[i]->GetPosition();
 
 		if (Agents[i] == nullptr)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Failed to spawn agent %d"), i);
+			UE_LOG(LogTemp, Error, TEXT("Failed to spawn agent %d"), i);
 			continue;
 		}
 		Agents[i]->SetSteeringBehavior(pPrioritySteering.get());
 		Agents[i]->SetDebugRenderingEnabled(false);
+#ifdef GAMEAI_USE_SPACE_PARTITIONING
+		pPartitionedSpace->AddAgent(*Agents[i]);
+#endif
 	}
-
-	Neighbors.SetNum(FlockSize - 1);
 }
 
 Flock::~Flock()
 {
  // Cleanup any additional data
+	pPartitionedSpace->EmptyCells();
 }
 
 void Flock::Tick(float DeltaTime)
@@ -79,12 +96,24 @@ void Flock::Tick(float DeltaTime)
 	EvadeTargetData.AngularVelocity = pAgentToEvade->GetAngularVelocity();
 	pEvadeBehavior->SetTarget(EvadeTargetData);
 
-	for (ASteeringAgent* agent : Agents)
+
+	for (int i {}; i < Agents.Num(); ++i)
 	{
-		if (agent == nullptr) continue;
+		if (Agents[i] == nullptr) continue;
+
+#ifndef GAMEAI_USE_SPACE_PARTITIONING
 		RegisterNeighbors(agent);
-		agent->Tick(DeltaTime);
-		TrimToWorld(agent);
+#else
+		pPartitionedSpace->UpdateAgentCell(*Agents[i], OldPositions[i]);
+		pPartitionedSpace->RegisterNeighbors(*Agents[i], NeighborhoodRadius);
+#endif
+
+		Agents[i]->Tick(DeltaTime);
+		
+#ifdef GAMEAI_USE_SPACE_PARTITIONING
+#endif
+		TrimToWorld(Agents[i]);
+		OldPositions[i] = Agents[i]->GetPosition();
 	}
 	TrimToWorld(pAgentToEvade);
 }
@@ -92,18 +121,15 @@ void Flock::Tick(float DeltaTime)
 void Flock::RenderDebug()
 {
 	// Render trim world
-	float halfSize = WorldSize / 2;
-	FVector p1{ halfSize, -halfSize, 0 };
-	FVector p2{ halfSize, halfSize, 0 };
-	FVector p3{ -halfSize, halfSize, 0 };
-	FVector p4{ -halfSize, -halfSize, 0 };
-	DrawDebugLine(pWorld, p1, p2, FColor::Red);
-	DrawDebugLine(pWorld, p2, p3, FColor::Red);
-	DrawDebugLine(pWorld, p3, p4, FColor::Red);
-	DrawDebugLine(pWorld, p4, p1, FColor::Red);
+	DrawDebugBox(pWorld, FVector::ZeroVector, FVector(WorldSize * 0.5f, WorldSize * 0.5f, 0), FColor::Red);
+
+#ifdef GAMEAI_USE_SPACE_PARTITIONING
+	if (DebugRenderPartitions) pPartitionedSpace->RenderCells();
+#endif
 
 	// Render the debug first agent in the flock! and only the debug as well as its neighborhood
-	for (size_t i{}; i < NrOfNeighbors; ++i)
+	for (size_t i{}; i < GetNrOfNeighbors(); ++i)
+
 	{
 		if (Agents[i] != nullptr)
 		{
@@ -155,6 +181,7 @@ void Flock::ImGuiRender(ImVec2 const& WindowPos, ImVec2 const& WindowSize)
 		// TODO: implement ImGUI checkboxes for debug rendering here
 		ImGui::Checkbox("DebugRender First Agent", &DebugRenderSteering);
 		ImGui::Checkbox("DebugRender Neighborhood", &DebugRenderNeighborhood);
+		ImGui::Checkbox("DebugRender Partitions", &DebugRenderPartitions);
 
 		ImGui::Text("Behavior Weights");
 		ImGui::Spacing();
@@ -212,12 +239,20 @@ void Flock::RenderNeighborhood(ASteeringAgent* const pAgent)
 	// hightlight the agents in the neighborhood and draw circle
 	if (DebugRenderNeighborhood)
 	{
-		DrawDebugCircle(pWorld, FVector(pAgent->GetPosition(), 90), NeighborhoodRadius, 32, FColor::Red, false, -1.f, 0, 10.f, FVector(1.f, 0.f, 0.f), FVector(0.f, 1.f, 0.f), false);
+		DrawDebugCircle(pWorld, FVector(pAgent->GetPosition(), 0), NeighborhoodRadius, 32, FColor::Red, false, -1.f, 0, 10.f, FVector(1.f, 0.f, 0.f), FVector(0.f, 1.f, 0.f), false);
+#ifndef GAMEAI_USE_SPACE_PARTITIONING
 		RegisterNeighbors(pAgent);
 		for (int i{}; i < NrOfNeighbors; ++i)
 		{
 			DrawDebugSphere(pWorld, FVector{ Neighbors[i]->GetPosition(), 90 }, 20, 16, FColor::Emerald);
 		}
+#else
+		pPartitionedSpace->RegisterNeighbors(*pAgent, NeighborhoodRadius);
+		for (int i{}; i < pPartitionedSpace->GetNrOfNeighbors(); ++i)
+		{
+			DrawDebugSphere(pWorld, FVector{ pPartitionedSpace->GetNeighbors()[i]->GetPosition(), 90 }, 20, 16, FColor::Emerald);
+		}
+#endif
 	}
 }
 
@@ -265,16 +300,15 @@ void Flock::RegisterNeighbors(ASteeringAgent* const pAgent)
 FVector2D Flock::GetAverageNeighborPos() const
 {
 	FVector2D avgPosition = FVector2D::ZeroVector;
-
-	if (NrOfNeighbors > 0)
+	if (GetNrOfNeighbors() > 0)
 	{
-		for (int i{}; i < NrOfNeighbors; ++i)
+		for (int i{}; i < GetNrOfNeighbors(); ++i)
 		{
-			avgPosition += Neighbors[i]->GetPosition();
+			avgPosition += GetNeighbors()[i]->GetPosition();
 		}
 		avgPosition /= NrOfNeighbors;
 	}
-	
+
 	return avgPosition;
 }
 
@@ -282,11 +316,11 @@ FVector2D Flock::GetAverageNeighborVelocity() const
 {
 	FVector2D avgVelocity = FVector2D::ZeroVector;
 
-	if (NrOfNeighbors > 0)
+	if (GetNrOfNeighbors() > 0)
 	{
-		for (int i{}; i < NrOfNeighbors; ++i)
+		for (int i{}; i < GetNrOfNeighbors(); ++i)
 		{
-			avgVelocity += Neighbors[i]->GetLinearVelocity();
+			avgVelocity += GetNeighbors()[i]->GetLinearVelocity();
 		}
 		avgVelocity /= NrOfNeighbors;
 	}
