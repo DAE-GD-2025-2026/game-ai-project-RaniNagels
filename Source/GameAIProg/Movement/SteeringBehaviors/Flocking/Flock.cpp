@@ -112,7 +112,7 @@ void Flock::Tick(float DeltaTime)
 		
 #ifdef GAMEAI_USE_SPACE_PARTITIONING
 #endif
-		TrimToWorld(Agents[i]);
+		TrimToWorld(Agents[i], i);
 		OldPositions[i] = Agents[i]->GetPosition();
 	}
 	TrimToWorld(pAgentToEvade);
@@ -256,26 +256,36 @@ void Flock::RenderNeighborhood(ASteeringAgent* const pAgent)
 	}
 }
 
-void Flock::TrimToWorld(ASteeringAgent* const pAgent)
+void Flock::TrimToWorld(ASteeringAgent* const pAgent, int index)
 {
 	float halfSize = WorldSize / 2;
+	float safetyOffset = 10; // to prevent leaving the grid even slightly and messing up the spacial partitioning
+	halfSize -= safetyOffset;
+	bool moved = false;
 	if (pAgent->GetPosition().X > halfSize)
 	{
 		pAgent->SetActorLocation(FVector(-halfSize, pAgent->GetPosition().Y, 90));
+		moved = true;
 	}
 	else if (pAgent->GetPosition().X < -halfSize)
 	{
 		pAgent->SetActorLocation(FVector(halfSize, pAgent->GetPosition().Y, 90));
+		moved = true;
 	}
 
 	if (pAgent->GetPosition().Y > halfSize)
 	{
 		pAgent->SetActorLocation(FVector(pAgent->GetPosition().X, -halfSize, 90));
+		moved = true;
 	}
 	else if (pAgent->GetPosition().Y < -halfSize)
 	{
 		pAgent->SetActorLocation(FVector(pAgent->GetPosition().X, halfSize, 90));
+		moved = true;
 	}
+
+	if (moved && index != -1)
+		pPartitionedSpace->UpdateAgentCell(*pAgent, OldPositions[index]);
 }
 
 #ifndef GAMEAI_USE_SPACE_PARTITIONING
@@ -306,7 +316,7 @@ FVector2D Flock::GetAverageNeighborPos() const
 		{
 			avgPosition += GetNeighbors()[i]->GetPosition();
 		}
-		avgPosition /= NrOfNeighbors;
+		avgPosition /= GetNrOfNeighbors();
 	}
 
 	return avgPosition;
@@ -322,7 +332,7 @@ FVector2D Flock::GetAverageNeighborVelocity() const
 		{
 			avgVelocity += GetNeighbors()[i]->GetLinearVelocity();
 		}
-		avgVelocity /= NrOfNeighbors;
+		avgVelocity /= GetNrOfNeighbors();
 	}
 
 	return avgVelocity;

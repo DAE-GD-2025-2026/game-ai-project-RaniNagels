@@ -12,8 +12,8 @@ SteeringOutput Seek::CalculateSteering(float deltaT, ASteeringAgent& Agent)
     SteeringOutput steering{};
 
     steering.LinearVelocity = Target.Position - Agent.GetPosition();
-    //steering.LinearVelocity.Normalize();
-    //steering.LinearVelocity *= Agent.GetMaxLinearSpeed() * deltaT;
+    steering.LinearVelocity.Normalize();
+    steering.LinearVelocity *= Agent.GetMaxLinearSpeed() * deltaT;
 
     if (Agent.GetDebugRenderingEnabled())
     {
@@ -38,8 +38,8 @@ SteeringOutput Flee::CalculateSteering(float deltaT, ASteeringAgent& Agent)
     SteeringOutput steering{};
 
     steering.LinearVelocity = -1 * (Target.Position - Agent.GetPosition());
-    //steering.LinearVelocity.Normalize();
-    //steering.LinearVelocity *= Agent.GetMaxLinearSpeed() * deltaT;
+    steering.LinearVelocity.Normalize();
+    steering.LinearVelocity *= Agent.GetMaxLinearSpeed() * deltaT;
 
     if (Agent.GetDebugRenderingEnabled())
     {
@@ -158,8 +158,8 @@ SteeringOutput Pursuit::CalculateSteering(float deltaT, ASteeringAgent& Agent)
     const float timeToTarget{ distance / Agent.GetMaxLinearSpeed() };
 
     steering.LinearVelocity = (Target.Position + Target.LinearVelocity * timeToTarget) - Agent.GetPosition();
-    //steering.LinearVelocity.Normalize();
-    //steering.LinearVelocity *= Agent.GetMaxLinearSpeed() * deltaT;
+    steering.LinearVelocity.Normalize();
+    steering.LinearVelocity *= Agent.GetMaxLinearSpeed() * deltaT;
     steering.LinearVelocity *= deltaT;
 
     if (Agent.GetDebugRenderingEnabled())

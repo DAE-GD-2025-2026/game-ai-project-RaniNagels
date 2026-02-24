@@ -71,24 +71,21 @@ void CellSpace::UpdateAgentCell(ASteeringAgent& Agent, const FVector2D& OldPos)
 
 	const int oldIndex = PositionToIndex(OldPos);
 	auto newPos = Agent.GetPosition();
-	const int newIndex = PositionToIndex(newPos);
+	int newIndex = PositionToIndex(newPos);
+
+	if (newIndex > Cells.size() && newIndex < Cells.size() + NrOfCols)
+	{
+		newIndex -= NrOfCols; // prevent minor overflow
+	}
 
 	if (oldIndex != newIndex) 
 	{
 		if (newIndex >= 0 && newIndex < Cells.size() &&
 			oldIndex >= 0 && oldIndex < Cells.size())
 		{
-			for (auto a : Cells[oldIndex].Agents)
-			{
-				if (a == &Agent)
-				{
-					Cells[oldIndex].Agents.remove(a);
-					break;
-				}
-			}
-			//Cells[oldIndex].Agents.remove(&Agent);
+			Cells[oldIndex].Agents.remove(&Agent);
 			Cells[newIndex].Agents.push_back(&Agent);
-			UE_LOG(LogTemp, Warning, TEXT("Agent has changed cell: %i -> %i"), oldIndex, newIndex);
+			//UE_LOG(LogTemp, Warning, TEXT("Agent has changed cell: %i -> %i"), oldIndex, newIndex);
 		}
 		else
 		{
@@ -142,8 +139,9 @@ void CellSpace::RenderCells() const
 		auto center = (c.BoundingBox.Min + c.BoundingBox.Max) / 2;
 		DrawDebugBox(pWorld, FVector(center, 0), FVector(CellWidth * 0.5f, CellHeight * 0.5f, 0), FColor::Emerald);
 
-		//FString text = FString::Printf(TEXT("%d"), c.Agents.size());
-		//DrawDebugString(pWorld, FVector(c.BoundingBox.Max.X, c.BoundingBox.Min.Y, 0), FString(text));
+		// needs a limited lifetime!
+		FString text = FString::Printf(TEXT("%d"), c.Agents.size());
+		DrawDebugString(pWorld, FVector(c.BoundingBox.Max.X, c.BoundingBox.Min.Y, 0), FString(text), nullptr, FColor::White, 0.01f);
 	}
 }
 

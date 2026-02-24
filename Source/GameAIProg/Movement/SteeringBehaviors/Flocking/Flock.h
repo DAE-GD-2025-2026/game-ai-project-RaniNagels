@@ -83,5 +83,5 @@ private:
 	bool DebugRenderPartitions{true};
 
 	void RenderNeighborhood(ASteeringAgent* const pAgent);
-	void TrimToWorld(ASteeringAgent* const pAgent);
+	void TrimToWorld(ASteeringAgent* const pAgent, int index = -1);
 };
