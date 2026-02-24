@@ -1,5 +1,6 @@
 #include "Flock.h"
 #include "FlockingSteeringBehaviors.h"
+#include "../SpacePartitioning/SpacePartitioning.h"
 #include "Shared/ImGuiHelpers.h"
 #include <string>
 
@@ -37,13 +38,12 @@ Flock::Flock(
 	steeringBehaviors.push_back(pBlendedSteering.get());
 	pPrioritySteering = std::make_unique<PrioritySteering>(steeringBehaviors);
 
-#ifndef GAMEAI_USE_SPACE_PARTITIONING
-	Neighbors.SetNum(FlockSize - 1);
-#else GAMEAI_USE_SPACE_PARTITIONING
+	Neighbors.SetNum(FlockSize);
+
 	pPartitionedSpace = std::make_unique<CellSpace>(pWorld, WorldSize, WorldSize, NrOfCellsX, NrOfCellsX, FlockSize);
 	pPartitionedSpace->EmptyCells();
+
 	OldPositions.SetNum(FlockSize);
-#endif
 
 	// initialize the flock and the memory pool
 	Agents.SetNum(FlockSize);
@@ -69,9 +69,9 @@ Flock::Flock(
 		}
 		Agents[i]->SetSteeringBehavior(pPrioritySteering.get());
 		Agents[i]->SetDebugRenderingEnabled(false);
-#ifdef GAMEAI_USE_SPACE_PARTITIONING
-		pPartitionedSpace->AddAgent(*Agents[i]);
-#endif
+
+		if (UsingSpacialPartitioning)
+			pPartitionedSpace->AddAgent(*Agents[i]);
 	}
 }
 
@@ -96,25 +96,19 @@ void Flock::Tick(float DeltaTime)
 	EvadeTargetData.AngularVelocity = pAgentToEvade->GetAngularVelocity();
 	pEvadeBehavior->SetTarget(EvadeTargetData);
 
-
 	for (int i {}; i < Agents.Num(); ++i)
 	{
 		if (Agents[i] == nullptr) continue;
 
-#ifndef GAMEAI_USE_SPACE_PARTITIONING
-		RegisterNeighbors(agent);
-#else
-		pPartitionedSpace->UpdateAgentCell(*Agents[i], OldPositions[i]);
-		pPartitionedSpace->RegisterNeighbors(*Agents[i], NeighborhoodRadius);
-#endif
+		if (UsingSpacialPartitioning) pPartitionedSpace->UpdateAgentCell(*Agents[i], OldPositions[i]);
+		RegisterNeighbors(Agents[i]);
 
 		Agents[i]->Tick(DeltaTime);
 		
-#ifdef GAMEAI_USE_SPACE_PARTITIONING
-#endif
 		TrimToWorld(Agents[i], i);
-		OldPositions[i] = Agents[i]->GetPosition();
+		if (UsingSpacialPartitioning) OldPositions[i] = Agents[i]->GetPosition();
 	}
+
 	TrimToWorld(pAgentToEvade);
 }
 
@@ -123,9 +117,7 @@ void Flock::RenderDebug()
 	// Render trim world
 	DrawDebugBox(pWorld, FVector::ZeroVector, FVector(WorldSize * 0.5f, WorldSize * 0.5f, 0), FColor::Red);
 
-#ifdef GAMEAI_USE_SPACE_PARTITIONING
-	if (DebugRenderPartitions) pPartitionedSpace->RenderCells();
-#endif
+	if (DebugRenderPartitions && UsingSpacialPartitioning) pPartitionedSpace->RenderCells();
 
 	// Render the debug first agent in the flock! and only the debug as well as its neighborhood
 	for (size_t i{}; i < GetNrOfNeighbors(); ++i)
@@ -181,7 +173,17 @@ void Flock::ImGuiRender(ImVec2 const& WindowPos, ImVec2 const& WindowSize)
 		// TODO: implement ImGUI checkboxes for debug rendering here
 		ImGui::Checkbox("DebugRender First Agent", &DebugRenderSteering);
 		ImGui::Checkbox("DebugRender Neighborhood", &DebugRenderNeighborhood);
-		ImGui::Checkbox("DebugRender Partitions", &DebugRenderPartitions);
+
+		ImGui::Spacing();
+		if (ImGui::Checkbox("Use SpacialPartitioning", &UsingSpacialPartitioning))
+		{
+			if (UsingSpacialPartitioning)
+				StartUsingSpacialPartitioning();
+			else 
+				StopUsingSpacialPartitioning();
+		}
+		if (UsingSpacialPartitioning)
+			ImGui::Checkbox("DebugRender Partitions", &DebugRenderPartitions);
 
 		ImGui::Text("Behavior Weights");
 		ImGui::Spacing();
@@ -240,19 +242,11 @@ void Flock::RenderNeighborhood(ASteeringAgent* const pAgent)
 	if (DebugRenderNeighborhood)
 	{
 		DrawDebugCircle(pWorld, FVector(pAgent->GetPosition(), 0), NeighborhoodRadius, 32, FColor::Red, false, -1.f, 0, 10.f, FVector(1.f, 0.f, 0.f), FVector(0.f, 1.f, 0.f), false);
-#ifndef GAMEAI_USE_SPACE_PARTITIONING
 		RegisterNeighbors(pAgent);
-		for (int i{}; i < NrOfNeighbors; ++i)
+		for (int i{}; i < GetNrOfNeighbors(); ++i)
 		{
-			DrawDebugSphere(pWorld, FVector{ Neighbors[i]->GetPosition(), 90 }, 20, 16, FColor::Emerald);
+			DrawDebugSphere(pWorld, FVector{ GetNeighbors()[i]->GetPosition(), 90 }, 20, 16, FColor::Emerald);
 		}
-#else
-		pPartitionedSpace->RegisterNeighbors(*pAgent, NeighborhoodRadius);
-		for (int i{}; i < pPartitionedSpace->GetNrOfNeighbors(); ++i)
-		{
-			DrawDebugSphere(pWorld, FVector{ pPartitionedSpace->GetNeighbors()[i]->GetPosition(), 90 }, 20, 16, FColor::Emerald);
-		}
-#endif
 	}
 }
 
@@ -284,28 +278,65 @@ void Flock::TrimToWorld(ASteeringAgent* const pAgent, int index)
 		moved = true;
 	}
 
-	if (moved && index != -1)
+	if (moved && index != -1 && UsingSpacialPartitioning)
 		pPartitionedSpace->UpdateAgentCell(*pAgent, OldPositions[index]);
 }
 
-#ifndef GAMEAI_USE_SPACE_PARTITIONING
+void Flock::StartUsingSpacialPartitioning()
+{
+	for (ASteeringAgent* agent : Agents)
+	{
+		pPartitionedSpace->AddAgent(*agent);
+		RegisterNeighbors(agent);
+	}
+}
+
+void Flock::StopUsingSpacialPartitioning()
+{
+	pPartitionedSpace->EmptyCells();
+	for (ASteeringAgent* agent : Agents)
+	{
+		RegisterNeighbors(agent);
+	}
+}
+
 void Flock::RegisterNeighbors(ASteeringAgent* const pAgent)
 {
-	NrOfNeighbors = 0;
-	for (auto* agent : Agents)
+	if (UsingSpacialPartitioning)
+		pPartitionedSpace->RegisterNeighbors(*pAgent, NeighborhoodRadius);
+	else
 	{
-		if (pAgent != nullptr && pAgent != agent && agent != nullptr)
+		NrOfNeighbors = 0;
+		for (auto* agent : Agents)
 		{
-			float distance = FVector2D::Distance(pAgent->GetPosition(), agent->GetPosition());
-			if (distance <= NeighborhoodRadius)
+			if (pAgent != nullptr && pAgent != agent && agent != nullptr)
 			{
-				Neighbors[NrOfNeighbors] = agent;
-				++NrOfNeighbors;
+				float distance = FVector2D::Distance(pAgent->GetPosition(), agent->GetPosition());
+				if (distance <= NeighborhoodRadius)
+				{
+					Neighbors[NrOfNeighbors] = agent;
+					++NrOfNeighbors;
+				}
 			}
 		}
 	}
 }
-#endif
+
+int Flock::GetNrOfNeighbors() const
+{
+	if (UsingSpacialPartitioning)
+		return pPartitionedSpace->GetNrOfNeighbors();
+	else
+		return NrOfNeighbors;
+}
+
+const TArray<ASteeringAgent*>& Flock::GetNeighbors() const
+{
+	if (UsingSpacialPartitioning)
+		return pPartitionedSpace->GetNeighbors();
+	else
+		return Neighbors;
+}
 
 FVector2D Flock::GetAverageNeighborPos() const
 {
