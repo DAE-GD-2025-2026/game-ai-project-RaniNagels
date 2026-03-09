@@ -160,7 +160,6 @@ SteeringOutput Pursuit::CalculateSteering(float deltaT, ASteeringAgent& Agent)
     steering.LinearVelocity = (Target.Position + Target.LinearVelocity * timeToTarget) - Agent.GetPosition();
     steering.LinearVelocity.Normalize();
     steering.LinearVelocity *= Agent.GetMaxLinearSpeed() * deltaT;
-    steering.LinearVelocity *= deltaT;
 
     if (Agent.GetDebugRenderingEnabled())
     {

@@ -19,6 +19,7 @@ ALevel_GraphTheory::ALevel_GraphTheory()
 void ALevel_GraphTheory::BeginPlay()
 {
 	Super::BeginPlay();
+	Renderer = GraphRenderer{ GetWorld() };
 	
 	// Add the graph editor to our player
 	if (PlayerController = Cast<APlayerController>(GetWorld()->GetFirstLocalPlayerFromController()->PlayerController); 
@@ -42,6 +43,9 @@ void ALevel_GraphTheory::BeginPlay()
 	}
 	
 	// TODO Make the graph and a couple connected nodes here...
+	int index1 = Graph.AddNode(NodeFactory.CreateNode(FVector2D{ 100.f, 100.f }));
+	int index2 = Graph.AddNode(NodeFactory.CreateNode(FVector2D{ -200.f, -50.f }));
+	Graph.AddConnection(std::make_unique<Connection>(index1, index2));
 	
 	// Spawn the Agent
 	Agent = GetWorld()->SpawnActor<ASteeringAgent>(SteeringAgentClass, 
@@ -100,8 +104,18 @@ void ALevel_GraphTheory::Tick(float DeltaTime)
 	Renderer.RenderGraph(Graph);
 	
 	// TODO Check if the graph has updated
-	// TODO if so, run the EulerianPath algorithm
-	// TODO if a path is found, have the agent follow it
+	if (PlayerGraphEditor->HasGraphUpdated())
+	{
+		// TODO if so, run the EulerianPath algorithm
+		EulerianPath euler{ &Graph };
+		auto state = euler.IsEulerian();
+		 std::vector<GameAI::Node*> trail = euler.FindPath(state);
+
+		// TODO if a path is found, have the agent follow it
+		UpdateAgentPath(trail);
+	}
+
+	Agent->Tick(DeltaTime);
 }
 
 void ALevel_GraphTheory::UpdateAgentPath(std::vector<Node*> const& Trail)
@@ -109,6 +123,11 @@ void ALevel_GraphTheory::UpdateAgentPath(std::vector<Node*> const& Trail)
 	std::vector<FVector2D> path{};
 	
 	// TODO convert Node vector to positions vector
+	for (auto* node : Trail)
+	{
+		if (node->GetId() != -1)
+			path.push_back(node->GetPosition());
+	}
 
 	PathFollow.SetPath(path);
 	if (path.size() > 0)

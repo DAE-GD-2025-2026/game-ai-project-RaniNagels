@@ -125,7 +125,8 @@ void UGraphEditorComponent::UpdateNodeMovement()
 		return;
 	}
 	
-	EditedGraph->GetNode(CurrentlyHoveredNodeId)->SetPosition(FVector2D{LatestMousePos});
+	if (CurrentlyHoveredNodeId != -1)
+		EditedGraph->GetNode(CurrentlyHoveredNodeId)->SetPosition(FVector2D{LatestMousePos});
 }
 
 bool UGraphEditorComponent::GetEnhancedInput()
