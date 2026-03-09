@@ -11,6 +11,7 @@ AStar::AStar(Graph* const pGraph, HeuristicFunctions::Heuristic hFunction)
 std::vector<Node*>AStar::FindPath(Node* const pStartNode, Node* const pGoalNode)
 {
 	std::vector<Node*> path{};
+	// TODO: implement
 	return path;
 }
 

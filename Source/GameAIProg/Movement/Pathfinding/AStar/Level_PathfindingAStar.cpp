@@ -43,9 +43,9 @@ void ALevel_PathfindingAStar::BeginPlay()
 	// Create graph & renderer
 	Renderer = new GraphRenderer{GetWorld()};
 	GraphRenderOptions RenderOptions{};
-	RenderOptions.bDrawConnectionWeights = false;
-	RenderOptions.bDrawConnections = false;
-	RenderOptions.bDrawNodeIds = false;
+	RenderOptions.bDrawConnectionWeights = bDrawConnectionsCosts;
+	RenderOptions.bDrawConnections = bDrawConnections;
+	RenderOptions.bDrawNodeIds = bDrawNodeNumbers;
 	RenderOptions.bDrawNodes = false;
 	Renderer->SetRenderOptions(RenderOptions);
 	
@@ -92,9 +92,8 @@ void ALevel_PathfindingAStar::Tick(float DeltaTime)
 	UpdateImGui();
 	
 	Renderer->RenderGraph(*TerrainGraph);
-	TerrainGraph->DebugDrawCells(GetWorld());
+	if (bDrawGrid) TerrainGraph->DebugDrawCells(GetWorld());
 	TerrainGraph->DrawTerrain(GetWorld());
-	// TODO implement conditional debug draws
 }
 
 void ALevel_PathfindingAStar::CalculatePath()
@@ -186,11 +185,29 @@ void ALevel_PathfindingAStar::UpdateImGui()
 		ImGui::Text("A* Pathfinding");
 		ImGui::Spacing();
 		
-		// TODO conditional debug draws
-		// ImGui::Checkbox("Grid", &bDrawGrid);
-		// ImGui::Checkbox("NodeNumbers", &bDrawNodeNumbers);
-		// ImGui::Checkbox("Connections", &bDrawConnections);
-		// ImGui::Checkbox("Connections Costs", &bDrawConnectionsCosts);
+		ImGui::Checkbox("Grid", &bDrawGrid);
+		if (ImGui::Checkbox("NodeNumbers", &bDrawNodeNumbers))
+		{
+			auto RenderOptions = Renderer->GetRenderOptions();
+			RenderOptions.bDrawNodeIds = bDrawNodeNumbers;
+			Renderer->SetRenderOptions(RenderOptions);
+		}
+		if (ImGui::Checkbox("Connections", &bDrawConnections))
+		{
+			auto RenderOptions = Renderer->GetRenderOptions();
+			RenderOptions.bDrawConnections = bDrawConnections;
+			Renderer->SetRenderOptions(RenderOptions);
+		}
+		if (bDrawConnections)
+		{
+			if (ImGui::Checkbox("Connections Costs", &bDrawConnectionsCosts))
+			{
+				auto RenderOptions = Renderer->GetRenderOptions();
+				RenderOptions.bDrawConnectionWeights = bDrawConnectionsCosts;
+				Renderer->SetRenderOptions(RenderOptions);
+			}
+		}
+
 		if (ImGui::Combo("", &SelectedHeuristic, "Manhattan\0Euclidean\0SqEuclidean\0Octile\0Chebyshev", 4))
 		{
 			switch (SelectedHeuristic)
