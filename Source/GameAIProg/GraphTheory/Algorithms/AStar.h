@@ -37,6 +37,7 @@ namespace GameAI
 
 	private:
 		float GetHeuristicCost(Node* const pStartNode, Node* const pEndNode) const;
+		bool RemoveIfWorse(std::vector<NodeRecord>& list, Node* node, float newCost);
 
 		Graph* pGraph;
 		HeuristicFunctions::Heuristic HeuristicFunction;
