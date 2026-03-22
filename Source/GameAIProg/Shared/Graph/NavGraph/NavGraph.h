@@ -15,6 +15,8 @@ namespace GameAI
 		TriPolygon const * GetNavPolygon() const {return pNavPoly.get();}
 		int GetNodeIdFromEdgeIndex(int EdgeIdx) const;
 		
+		std::vector<std::pair<TriPolygon::Edge, int>> GetEdgesWithIdx() const;
+		
 	private:
 		std::unique_ptr<TriPolygon> pNavPoly;
 
