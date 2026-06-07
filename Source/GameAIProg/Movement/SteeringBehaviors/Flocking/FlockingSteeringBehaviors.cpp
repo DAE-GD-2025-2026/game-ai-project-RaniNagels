@@ -28,8 +28,13 @@ SteeringOutput Separation::CalculateSteering(float deltaT, ASteeringAgent& Agent
 	for (int i{}; i < m_pFlock->GetNrOfNeighbors(); ++i)
 	{
 		FVector2D direction = Agent.GetPosition() - m_pFlock->GetNeighbors()[i]->GetPosition();
-		float distance = FVector2D::Distance(Agent.GetPosition(), m_pFlock->GetNeighbors()[i]->GetPosition());
-		steering.LinearVelocity += direction / distance;
+		float distance = direction.Size();
+
+		if (distance > 0.0001f)
+		{
+			FVector2D normalizedDir = direction / distance;
+			steering.LinearVelocity += normalizedDir / distance;
+		}
 	}
 
 	steering.LinearVelocity.Normalize();

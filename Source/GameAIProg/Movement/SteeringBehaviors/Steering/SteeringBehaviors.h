@@ -6,7 +6,7 @@
 class ASteeringAgent;
 
 // SteeringBehavior base, all steering behaviors should derive from this.
-class ISteeringBehavior
+class ISteeringBehavior 
 {
 public:
 	ISteeringBehavior() = default;

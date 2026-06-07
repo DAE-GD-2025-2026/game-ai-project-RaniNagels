@@ -23,12 +23,23 @@ std::vector<Node*>AStar::FindPath(Node* const pStartNode, Node* const pGoalNode)
 	startNodeRecord.estimatedTotalCost = GetHeuristicCost(pStartNode, pGoalNode);
 	openList.emplace_back(startNodeRecord);
 	currentNodeRecord = openList.front();
+
+	// Keep track of the closest node to the goal in case we cannot find a path to the goal
+	NodeRecord closestNodeRecord = startNodeRecord;
+	float closestNodeHeuristicCost = GetHeuristicCost(pStartNode, pGoalNode);
 	
 	// 2. the while loop
 	while (!openList.empty())
 	{
 		// A. Get record from the open list with lowest f-score
 		currentNodeRecord = *std::min_element(openList.begin(), openList.end());
+
+		float currentHeuristicCost = GetHeuristicCost(currentNodeRecord.pNode, pGoalNode);
+		if (currentHeuristicCost < closestNodeHeuristicCost)
+		{
+			closestNodeRecord = currentNodeRecord;
+			closestNodeHeuristicCost = currentHeuristicCost;
+		}
 		
 		// B. Check if that record refers to the end node
 		if (currentNodeRecord.pNode == pGoalNode)
@@ -65,10 +76,16 @@ std::vector<Node*>AStar::FindPath(Node* const pStartNode, Node* const pGoalNode)
 		std::erase(openList, currentNodeRecord);
 		closedList.emplace_back(currentNodeRecord);
 	}
-	if (currentNodeRecord.pNode != pGoalNode)
+
+	bool pathFound = currentNodeRecord.pNode == pGoalNode;
+	if (!pathFound)
 	{
-		path.emplace_back(pStartNode);
-		return path; // return Path with just the startNode if the last node does not match the goalNode
+		auto it = std::find(closedList.begin(), closedList.end(), closestNodeRecord);
+
+		if (it == closedList.end())
+			closedList.emplace_back(closestNodeRecord);
+
+		currentNodeRecord = closestNodeRecord;
 	}
 	
 	// 3. Reconstruct path from last connection to start node
