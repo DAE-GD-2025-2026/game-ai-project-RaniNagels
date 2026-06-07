@@ -11,5 +11,4 @@ Rani Nagels 2GD10
 	- BFS PathFinding		-> implimented
 	- PathSmoothing			-> implimented
 
-Extra Assignment:
-    *Fallback Path* from PathFinding (W5)
+Extra Assignment: **Fallback Path** from PathFinding (W5)
